@@ -1,6 +1,7 @@
 import os
 
 import scipy
+import numpy as np
 
 
 class ImageFileName(str):
@@ -22,7 +23,7 @@ class ImageFileName(str):
         return '{}_mask.png'.format(self.fname)
 
 
-def read_images(data_dir, batch_size=16, as_shape=(128, 128), mask_dir=None, file_names=None):
+def read_images(data_dir, batch_size=16, as_shape=128, mask_dir=None, file_names=None):
     """
     If file_names not provided,
     :param data_dir: dir of the data to be read
@@ -36,11 +37,11 @@ def read_images(data_dir, batch_size=16, as_shape=(128, 128), mask_dir=None, fil
     def _c(*args):
         return os.path.join(*args)
 
-    def _append_img(image_list, data_dir, fname, shape):
+    def _read_img(data_dir, fname, shape):
         path = _c(data_dir, fname)
         img = scipy.misc.imread(path)
-        img = scipy.misc.imresize(img, shape)
-        image_list.append(img)
+        img = scipy.misc.imresize(img, (shape, shape))
+        return img
 
     file_names = file_names or [ImageFileName(f.split('.')[0]) for f in os.listdir(data_dir)]
     while True:
@@ -51,9 +52,9 @@ def read_images(data_dir, batch_size=16, as_shape=(128, 128), mask_dir=None, fil
             batch_fnames = file_names[start:end]
 
             for f in batch_fnames:
-                _append_img(img_batch, data_dir, f.jpg, as_shape)
+                img_batch.append(_read_img(data_dir, f.jpg, as_shape))
 
                 if mask_dir:
-                    _append_img(mask_batch, mask_dir, f.mask, as_shape)
+                    mask_batch.append(np.expand_dims(_read_img(mask_dir, f.mask, as_shape), axis=2))
 
-            yield img_batch, mask_batch if mask_dir else None
+            yield np.array(img_batch, np.float32), np.array(mask_batch, np.float32) if mask_dir else None
