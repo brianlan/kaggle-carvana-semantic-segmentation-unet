@@ -48,18 +48,17 @@ def read_images(data_dir, batch_size=16, as_shape=128, mask_dir=None, file_names
         return img
 
     file_names = file_names or [ImageFileName(f.split('.')[0]) for f in os.listdir(data_dir)]
-    while True:
-        for start in range(0, len(file_names), batch_size):
-            img_batch = []
-            mask_batch = []
-            end = min(start + batch_size, len(file_names))
-            batch_fnames = file_names[start:end]
+    for start in range(0, len(file_names), batch_size):
+        img_batch = []
+        mask_batch = []
+        end = min(start + batch_size, len(file_names))
+        batch_fnames = file_names[start:end]
 
-            for f in batch_fnames:
-                img_batch.append(_read_img(data_dir, f.jpg, as_shape))
+        for f in batch_fnames:
+            img_batch.append(_read_img(data_dir, f.jpg, as_shape))
 
-                if mask_dir:
-                    im = _read_img(mask_dir, f.mask, as_shape, normalize=True, black_or_white=True)
-                    mask_batch.append(np.expand_dims(im, axis=2))
+            if mask_dir:
+                im = _read_img(mask_dir, f.mask, as_shape, normalize=True, black_or_white=True)
+                mask_batch.append(np.expand_dims(im, axis=2))
 
-            yield np.array(img_batch, np.float32), np.array(mask_batch, np.float32) if mask_dir else None
+        yield np.array(img_batch, np.float32), np.array(mask_batch, np.float32) if mask_dir else None
