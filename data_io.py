@@ -37,10 +37,14 @@ def read_images(data_dir, batch_size=16, as_shape=128, mask_dir=None, file_names
     def _c(*args):
         return os.path.join(*args)
 
-    def _read_img(data_dir, fname, shape):
+    def _read_img(data_dir, fname, shape, normalize=False, black_or_white=False):
         path = _c(data_dir, fname)
         img = scipy.misc.imread(path)
         img = scipy.misc.imresize(img, (shape, shape))
+
+        if normalize:
+            img = img // 255 if black_or_white else img / 255
+
         return img
 
     file_names = file_names or [ImageFileName(f.split('.')[0]) for f in os.listdir(data_dir)]
@@ -55,6 +59,7 @@ def read_images(data_dir, batch_size=16, as_shape=128, mask_dir=None, file_names
                 img_batch.append(_read_img(data_dir, f.jpg, as_shape))
 
                 if mask_dir:
-                    mask_batch.append(np.expand_dims(_read_img(mask_dir, f.mask, as_shape), axis=2))
+                    im = _read_img(mask_dir, f.mask, as_shape, normalize=True, black_or_white=True)
+                    mask_batch.append(np.expand_dims(im, axis=2))
 
             yield np.array(img_batch, np.float32), np.array(mask_batch, np.float32) if mask_dir else None

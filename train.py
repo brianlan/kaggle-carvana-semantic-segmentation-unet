@@ -13,6 +13,7 @@ from data_io import read_images, ImageFileName
 #  Global Parameters Definition
 ######################################
 PROJECT_HOME = '/home/rlan/projects/Kaggle/Carnava/kaggle-carvana-semantic-segmentation-unet'
+CHECKPOINT_DIR = os.path.join(PROJECT_HOME, 'checkpoints')
 INPUT_DIR = os.path.join(PROJECT_HOME, 'input')
 TRAIN_DATA_DIR = os.path.join(INPUT_DIR, 'train')
 TRAIN_MASK_DIR = os.path.join(INPUT_DIR, 'train_masks')
@@ -40,15 +41,17 @@ with tf.Session() as sess:
     unet.build()
     init = tf.global_variables_initializer()
     sess.run(init)
+    saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
 
     for epoch in range(EPOCHS):
         start_time = time.time()
         for batch, (X_batch, y_batch) in enumerate(train_data):
-            _, loss, pred = sess.run([unet.train_op, unet.cross_entropy, unet.pred],
+            _, loss, pred = sess.run([unet.train_op, unet.loss, unet.pred],
                                      feed_dict={unet.X_train: X_batch, unet.y_train: y_batch})
 
             print('[epoch {}, batch {}] cross_entropy: {}'.format(epoch, batch, loss))
 
         print('epoch {} took {:.0f} seconds to train.'.format(epoch, time.time() - start_time))
 
+    saver.save(sess, CHECKPOINT_DIR, global_step=epoch)
     pass

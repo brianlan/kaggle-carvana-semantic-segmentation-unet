@@ -25,7 +25,7 @@ class UNet:
         self.y_train = tf.placeholder(tf.int32, shape=(None, self.input_shape, self.input_shape, 1), name='y_train')
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         self.params = {}
-        self.pred = self.cross_entropy = self.optimizer = self.train_op = None
+        self.pred = self.loss = self.optimizer = self.train_op = None
 
     def _build_downward_layer(self, feat, num_filters, d='down'):
         f_shape = (3, 3, num_filters)
@@ -87,10 +87,10 @@ class UNet:
             #   classification
             #####################
             self.pred = conv_layer(feat, (1, 1, self.num_classes), name='classifier')
-            self.flat_y_train = tf.reshape(self.y_train, [-1])
-            self.flat_pred = tf.reshape(self.pred, [-1, self.num_classes])
-            self.cross_entropy = tf.reduce_mean(
+            # self.flat_y_train = tf.reshape(self.y_train, [-1])
+            # self.flat_pred = tf.reshape(self.pred, [-1, self.num_classes])
+            self.loss = tf.reduce_mean(
                 tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.reshape(self.y_train, [-1]),
                                                                logits=tf.reshape(self.pred, [-1, self.num_classes])))
             self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate, decay=0.9)
-            self.train_op = self.optimizer.minimize(self.cross_entropy, global_step=self.global_step)
+            self.train_op = self.optimizer.minimize(self.loss, global_step=self.global_step)
