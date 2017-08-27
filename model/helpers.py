@@ -25,8 +25,8 @@ def batchnorm_layer(X, is_test, offset, scale, convolutional=False):
         mean, variance = tf.nn.moments(X, [0])
 
     update_moving_averages = exp_moving_avg.apply([mean, variance])
-    m = tf.cond(is_test, lambda: exp_moving_avg.average(mean), lambda: mean)
-    v = tf.cond(is_test, lambda: exp_moving_avg.average(variance), lambda: variance)
+    m = tf.cond(tf.constant(is_test), lambda: exp_moving_avg.average(mean), lambda: mean)
+    v = tf.cond(tf.constant(is_test), lambda: exp_moving_avg.average(variance), lambda: variance)
     bn = tf.nn.batch_normalization(X, m, v, offset, scale, variance_epsilon=1e-5)
     return bn, update_moving_averages
 
@@ -42,15 +42,15 @@ def conv_layer(X, filter_shape, stride=1, is_test=False, use_bn=False, name=None
     :return:
     """
     with tf.variable_scope(name) as scope:
-        filt = weight_variable(filter_shape)
+        filt = weight_variable(tf.TensorShape([filter_shape[0], filter_shape[1], X.shape[3].value, filter_shape[2]]))
         conv = tf.nn.conv2d(X, filt, [1, stride, stride, 1], padding='SAME')
-        bias = bias_variable(filter_shape[2])
+        bias = bias_variable([filter_shape[2]])
         logits = conv + bias
 
         if use_bn:
-            scale = tf.Variable(tf.float32, shape=(X.shape[3]))  # aka. alpha
-            offset = tf.Variable(tf.float32, shape=(X.shape[3]))  # aka. beta
-            bn = batchnorm_layer(logits, is_test, offset, scale, convolutional=True)
+            scale = tf.Variable(tf.ones([filter_shape[2]]))  # aka. alpha
+            offset = tf.Variable(tf.zeros([filter_shape[2]]))  # aka. beta
+            bn, _ = batchnorm_layer(logits, is_test, offset, scale, convolutional=True)
 
         relu = tf.nn.relu(bn if use_bn else logits)
 
@@ -68,9 +68,11 @@ def max_pooling_layer(X, kernel_size=2, stride=2, padding='SAME', name=None):
     return pool
 
 
-def up_sampling_layer(X, filter_shape, output_shape, stride=2, padding='SAME', name=None):
+def up_sampling_layer(X, filter_shape, stride=2, padding='SAME', name=None):
     with tf.variable_scope(name):
-        filt = weight_variable(filter_shape)
+        filt = weight_variable((filter_shape[0], filter_shape[1], filter_shape[2], X.shape[3].value))
+        X_shape = tf.shape(X)
+        output_shape = tf.stack([X_shape[0], X_shape[1] * 2, X_shape[2] * 2, filter_shape[2]])
         deconv = tf.nn.conv2d_transpose(X, filt, output_shape, strides=[1, stride, stride, 1], padding=padding)
 
     return deconv
