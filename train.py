@@ -23,8 +23,8 @@ TRAIN_MASK_DIR = os.path.join(INPUT_DIR, 'train_masks')
 MAX_EPOCH = 50
 LEARNING_RATE = 1e-4
 NUM_CLASSES = 2
-BATCH_SIZE = 16
-INPUT_SHAPE = 128
+BATCH_SIZE = 32
+INPUT_SHAPE = 256
 
 ######################################
 #  Prepare Train / Validation Data
@@ -68,7 +68,7 @@ with tf.Session() as sess:
                                   feed_dict={unet.is_test: True, unet.X_train: X_val_batch, unet.y_train: y_val_batch})
             print('[epoch {}, batch {}] validation error: {}'.format(epoch, batch, loss))
 
-        print('==== Took {:.0f} seconds to evaluate the validation set. ===='.format(epoch, time.time() - start_time))
+        print('==== epoch {} took {:.0f} seconds to evaluate the validation set. ===='.format(epoch, time.time() - start_time))
 
         # last_image = np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255
         # scipy.misc.imsave(os.path.join(PROJECT_HOME, 'output', 'epoch_{}.png'.format(epoch)), last_image)

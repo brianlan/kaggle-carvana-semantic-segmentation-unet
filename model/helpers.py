@@ -48,9 +48,13 @@ def conv_layer(X, filter_shape, is_test, stride=1, use_bn=False, name=None):
         logits = conv + bias
 
         if use_bn:
-            scale = tf.Variable(tf.ones([filter_shape[2]]))  # aka. alpha
-            offset = tf.Variable(tf.zeros([filter_shape[2]]))  # aka. beta
-            bn, _ = batchnorm_layer(logits, is_test, offset, scale, convolutional=True)
+            # scale = tf.Variable(tf.ones([filter_shape[2]]))  # aka. alpha
+            # offset = tf.Variable(tf.zeros([filter_shape[2]]))  # aka. beta
+            # bn, _ = batchnorm_layer(logits, is_test, offset, scale, convolutional=True)
+            bn = tf.contrib.layers.batch_norm(logits,
+                                              center=True, scale=True,
+                                              is_training=tf.equal(is_test, tf.constant(False)),
+                                              scope=scope)
 
         relu = tf.nn.relu(bn if use_bn else logits)
 
