@@ -44,18 +44,34 @@ with tf.Session() as sess:
     saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
 
     for epoch in range(MAX_EPOCH):
+        ##############
+        #   Train
+        ##############
         start_time = time.time()
         train_data = read_images(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
                                  file_names=fnames_train)
         for batch, (X_batch, y_batch) in enumerate(train_data):
             _, loss, pred = sess.run([unet.train_op, unet.loss, unet.pred],
-                                     feed_dict={unet.X_train: X_batch, unet.y_train: y_batch})
+                                     feed_dict={unet.is_test: False, unet.X_train: X_batch, unet.y_train: y_batch})
+            print('[epoch {}, batch {}] training error: {}'.format(epoch, batch, loss))
 
-            print('[epoch {}, batch {}] cross_entropy: {}'.format(epoch, batch, loss))
+        print('==== epoch {} took {:.0f} seconds to train. ===='.format(epoch, time.time() - start_time))
 
-        print('epoch {} took {:.0f} seconds to train.'.format(epoch, time.time() - start_time))
-        last_image = np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255
-        scipy.misc.imsave(os.path.join(PROJECT_HOME, 'output', 'epoch_{}.png'.format(epoch)), last_image)
+        ##########################
+        #   Eval Validation set
+        ##########################
+        start_time = time.time()
+        val_data = read_images(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
+                               file_names=fnames_validation)
+        for batch, (X_val_batch, y_val_batch) in enumerate(val_data):
+            loss, pred = sess.run([unet.loss, unet.pred],
+                                  feed_dict={unet.is_test: True, unet.X_train: X_val_batch, unet.y_train: y_val_batch})
+            print('[epoch {}, batch {}] validation error: {}'.format(epoch, batch, loss))
 
-    saver.save(sess, CHECKPOINT_DIR, global_step=epoch)
+        print('==== Took {:.0f} seconds to evaluate the validation set. ===='.format(epoch, time.time() - start_time))
+
+        # last_image = np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255
+        # scipy.misc.imsave(os.path.join(PROJECT_HOME, 'output', 'epoch_{}.png'.format(epoch)), last_image)
+
+    saver.save(sess, os.path.join(CHECKPOINT_DIR, 'unet{}'.format(INPUT_SHAPE)), global_step=epoch)
     pass

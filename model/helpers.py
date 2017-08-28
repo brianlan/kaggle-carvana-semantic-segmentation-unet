@@ -25,13 +25,13 @@ def batchnorm_layer(X, is_test, offset, scale, convolutional=False):
         mean, variance = tf.nn.moments(X, [0])
 
     update_moving_averages = exp_moving_avg.apply([mean, variance])
-    m = tf.cond(tf.constant(is_test), lambda: exp_moving_avg.average(mean), lambda: mean)
-    v = tf.cond(tf.constant(is_test), lambda: exp_moving_avg.average(variance), lambda: variance)
+    m = tf.cond(is_test, lambda: exp_moving_avg.average(mean), lambda: mean)
+    v = tf.cond(is_test, lambda: exp_moving_avg.average(variance), lambda: variance)
     bn = tf.nn.batch_normalization(X, m, v, offset, scale, variance_epsilon=1e-5)
     return bn, update_moving_averages
 
 
-def conv_layer(X, filter_shape, stride=1, is_test=False, use_bn=False, name=None):
+def conv_layer(X, filter_shape, is_test, stride=1, use_bn=False, name=None):
     """
     :param X: the input data, which is of shape (N, H, W, C)
     :param filter_shape: the shape of filter, which is of shape (H, W, C)

@@ -11,13 +11,13 @@ class NotSupportedUNetResolution(Exception):
 class UNet:
     lookup_table = {128: 64, 256: 32, 512: 16, 1024: 8}
 
-    def __init__(self, num_classes, input_shape=128, is_test=False, learning_rate=1e-5, tf_scope='unet'):
+    def __init__(self, num_classes, input_shape=128, learning_rate=1e-5, tf_scope='unet'):
         if input_shape not in [128, 256, 512, 1024]:
             raise NotSupportedUNetResolution('Only 128, 256, 512 and 1024 are valid shape for UNet, but {!r} is given.'.format(input_shape))
 
         self.tf_scope = tf_scope
         self.num_classes = num_classes
-        self.is_test = is_test
+        self.is_test = tf.placeholder(tf.bool)
         self.input_shape = input_shape
         self.learning_rate = learning_rate
         self.start_num_filters = self.lookup_table[input_shape]
@@ -30,16 +30,16 @@ class UNet:
     def _build_downward_layer(self, feat, num_filters, d='down'):
         f_shape = (3, 3, num_filters)
         basename = d + str(num_filters)
-        self.params[basename+'a'] = conv_layer(feat, f_shape, use_bn=True, name=basename+'a')
-        self.params[basename+'b'] = conv_layer(self.params[basename+'a'], f_shape, use_bn=True, name=basename+'b')
+        self.params[basename+'a'] = conv_layer(feat, f_shape, self.is_test, use_bn=True, name=basename+'a')
+        self.params[basename+'b'] = conv_layer(self.params[basename+'a'], f_shape, self.is_test, use_bn=True, name=basename+'b')
         self.params[basename+'pool'] = max_pooling_layer(self.params[basename+'b'], 2, 2, name=basename+'pool')
         return self.params[basename+'pool']
 
     def _build_center_layer(self, feat, num_filters, d='center'):
         f_shape = (3, 3, num_filters)
         basename = d + str(num_filters)
-        self.params[basename+'a'] = conv_layer(feat, f_shape, use_bn=True, name=basename+'a')
-        self.params[basename+'b'] = conv_layer(self.params[basename+'a'], f_shape, use_bn=True, name=basename+'b')
+        self.params[basename+'a'] = conv_layer(feat, f_shape, self.is_test, use_bn=True, name=basename+'a')
+        self.params[basename+'b'] = conv_layer(self.params[basename+'a'], f_shape, self.is_test, use_bn=True, name=basename+'b')
         return self.params[basename+'b']
 
     def _build_upward_layer(self, feat, num_filters, d='up'):
@@ -53,8 +53,8 @@ class UNet:
         num_channels_of_merged = self.params[prev_name].shape[3].value + num_filters
         merged.set_shape([None, merged.shape[1].value, merged.shape[2].value, num_channels_of_merged])
 
-        self.params[basename+'a'] = conv_layer(merged, (3, 3, num_filters), use_bn=True, name=basename+'a')
-        self.params[basename+'b'] = conv_layer(self.params[basename+'a'], (3, 3, num_filters), use_bn=True, name=basename+'b')
+        self.params[basename+'a'] = conv_layer(merged, (3, 3, num_filters), self.is_test, use_bn=True, name=basename+'a')
+        self.params[basename+'b'] = conv_layer(self.params[basename+'a'], (3, 3, num_filters), self.is_test, use_bn=True, name=basename+'b')
 
         return self.params[basename+'b']
 
@@ -86,7 +86,7 @@ class UNet:
             #####################
             #   classification
             #####################
-            self.pred = conv_layer(feat, (1, 1, self.num_classes), name='classifier')
+            self.pred = conv_layer(feat, (1, 1, self.num_classes), self.is_test, name='classifier')
             # self.flat_y_train = tf.reshape(self.y_train, [-1])
             # self.flat_pred = tf.reshape(self.pred, [-1, self.num_classes])
             self.loss = tf.reduce_mean(
