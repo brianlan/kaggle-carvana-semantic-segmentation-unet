@@ -33,6 +33,10 @@ df = pd.read_csv(os.path.join(INPUT_DIR, 'train_masks.csv'))
 fnames = [ImageFileName(f.split('.')[0]) for f in df['img'].tolist()]
 fnames_train, fnames_validation = train_test_split(fnames, test_size=0.2, random_state=233)
 
+cur_checkpoint_path = os.path.join(CHECKPOINT_DIR, '{:.0f}-unet-{}'.format(time.time(), INPUT_SHAPE))
+if not os.path.exists(cur_checkpoint_path):
+    os.makedirs(cur_checkpoint_path)
+
 ######################################
 #  Build Graph and Evaluation
 ######################################
@@ -72,6 +76,5 @@ with tf.Session() as sess:
 
         # last_image = np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255
         # scipy.misc.imsave(os.path.join(PROJECT_HOME, 'output', 'epoch_{}.png'.format(epoch)), last_image)
+        saver.save(sess, os.path.join(cur_checkpoint_path, 'model'), global_step=epoch)
 
-    saver.save(sess, os.path.join(CHECKPOINT_DIR, 'unet{}'.format(INPUT_SHAPE)), global_step=epoch)
-    pass
