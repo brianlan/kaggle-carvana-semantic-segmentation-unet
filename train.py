@@ -7,6 +7,7 @@ import tensorflow as tf
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+from logger import logger
 from model.unet import UNet
 from data_io import read_images, ImageFileName
 
@@ -25,7 +26,7 @@ MAX_EPOCH = 50
 LEARNING_RATE = 1e-4
 NUM_CLASSES = 2
 BATCH_SIZE = 16
-INPUT_SHAPE = 128
+INPUT_SHAPE = 512
 
 ######################################
 #  Prepare Train / Validation Data
@@ -58,9 +59,9 @@ with tf.Session() as sess:
         for batch, (X_batch, y_batch) in enumerate(train_data):
             _, loss, pred = sess.run([unet.train_op, unet.loss, unet.pred],
                                      feed_dict={unet.is_training: True, unet.X_train: X_batch, unet.y_train: y_batch})
-            print('[epoch {}, batch {}] training error: {}'.format(epoch, batch, loss))
+            logger.info('[epoch {}, batch {}] training error: {}'.format(epoch, batch, loss))
 
-        print('==== epoch {} took {:.0f} seconds to train. ===='.format(epoch, time.time() - start_time))
+        logger.info('==== epoch {} took {:.0f} seconds to train. ===='.format(epoch, time.time() - start_time))
 
         ##########################
         #   Eval Validation set
@@ -74,8 +75,8 @@ with tf.Session() as sess:
                                   feed_dict={unet.is_training: False, unet.X_train: X_val_batch, unet.y_train: y_val_batch})
             losses.append(loss)
 
-        print('==== average validation error: {} ===='.format(np.average(losses)))
-        print('==== epoch {} took {:.0f} seconds to evaluate the validation set. ===='.format(epoch, time.time() - start_time))
+        logger.info('==== average validation error: {} ===='.format(np.average(losses)))
+        logger.info('==== epoch {} took {:.0f} seconds to evaluate the validation set. ===='.format(epoch, time.time() - start_time))
 
         last_image = np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255
         scipy.misc.imsave(os.path.join(PROJECT_HOME, 'output', 'epoch_{}.png'.format(epoch)), last_image)
