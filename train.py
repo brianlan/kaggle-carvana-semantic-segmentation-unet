@@ -16,6 +16,7 @@ from data_io import read_images, ImageFileName
 ######################################
 PROJECT_HOME = '/home/rlan/projects/Kaggle/Carnava/kaggle-carvana-semantic-segmentation-unet'
 CHECKPOINT_DIR = os.path.join(PROJECT_HOME, 'checkpoints')
+EPOCHS_ACCUMULATE_EACH_SAVING = 10
 INPUT_DIR = os.path.join(PROJECT_HOME, 'input')
 TRAIN_DATA_DIR = os.path.join(INPUT_DIR, 'train')
 TRAIN_MASK_DIR = os.path.join(INPUT_DIR, 'train_masks')
@@ -33,7 +34,7 @@ df = pd.read_csv(os.path.join(INPUT_DIR, 'train_masks.csv'))
 fnames = [ImageFileName(f.split('.')[0]) for f in df['img'].tolist()]
 fnames_train, fnames_validation = train_test_split(fnames, test_size=0.2, random_state=233)
 
-cur_checkpoint_path = os.path.join(CHECKPOINT_DIR, '{:.0f}-unet-{}'.format(time.time(), INPUT_SHAPE))
+cur_checkpoint_path = os.path.join(CHECKPOINT_DIR, '{:.0f}'.format(time.time()))
 if not os.path.exists(cur_checkpoint_path):
     os.makedirs(cur_checkpoint_path)
 
@@ -79,4 +80,5 @@ with tf.Session() as sess:
         last_image = np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255
         scipy.misc.imsave(os.path.join(PROJECT_HOME, 'output', 'epoch_{}.png'.format(epoch)), last_image)
 
-        saver.save(sess, os.path.join(cur_checkpoint_path, 'model'), global_step=epoch)
+        if (epoch > 0 and epoch % EPOCHS_ACCUMULATE_EACH_SAVING == 0) or epoch == MAX_EPOCH - 1:
+            saver.save(sess, os.path.join(cur_checkpoint_path, 'unet-{}'.format(INPUT_SHAPE)), global_step=epoch)

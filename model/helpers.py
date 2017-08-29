@@ -51,7 +51,7 @@ def conv_layer(X, filter_shape, is_training, stride=1, use_bn=False, name=None):
             # scale = tf.Variable(tf.ones([filter_shape[2]]))  # aka. alpha
             # offset = tf.Variable(tf.zeros([filter_shape[2]]))  # aka. beta
             # bn, _ = batchnorm_layer(logits, is_test, offset, scale, convolutional=True)
-            bn = tf.contrib.layers.batch_norm(logits, is_training=is_training, center=True, scale=True, decay=0.95, updates_collections=None, scope='bn')
+            bn = tf.contrib.layers.batch_norm(logits, is_training=is_training, center=True, scale=True, decay=0.99, updates_collections=None, scope='bn')
 
         relu = tf.nn.relu(bn if use_bn else logits)
 
