@@ -23,8 +23,8 @@ TRAIN_MASK_DIR = os.path.join(INPUT_DIR, 'train_masks')
 MAX_EPOCH = 50
 LEARNING_RATE = 1e-4
 NUM_CLASSES = 2
-BATCH_SIZE = 32
-INPUT_SHAPE = 256
+BATCH_SIZE = 16
+INPUT_SHAPE = 128
 
 ######################################
 #  Prepare Train / Validation Data
@@ -56,7 +56,7 @@ with tf.Session() as sess:
                                  file_names=fnames_train)
         for batch, (X_batch, y_batch) in enumerate(train_data):
             _, loss, pred = sess.run([unet.train_op, unet.loss, unet.pred],
-                                     feed_dict={unet.is_test: False, unet.X_train: X_batch, unet.y_train: y_batch})
+                                     feed_dict={unet.is_training: True, unet.X_train: X_batch, unet.y_train: y_batch})
             print('[epoch {}, batch {}] training error: {}'.format(epoch, batch, loss))
 
         print('==== epoch {} took {:.0f} seconds to train. ===='.format(epoch, time.time() - start_time))
@@ -67,14 +67,16 @@ with tf.Session() as sess:
         start_time = time.time()
         val_data = read_images(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
                                file_names=fnames_validation)
+        losses = []
         for batch, (X_val_batch, y_val_batch) in enumerate(val_data):
             loss, pred = sess.run([unet.loss, unet.pred],
-                                  feed_dict={unet.is_test: True, unet.X_train: X_val_batch, unet.y_train: y_val_batch})
-            print('[epoch {}, batch {}] validation error: {}'.format(epoch, batch, loss))
+                                  feed_dict={unet.is_training: False, unet.X_train: X_val_batch, unet.y_train: y_val_batch})
+            losses.append(loss)
 
+        print('==== average validation error: {} ===='.format(np.average(losses)))
         print('==== epoch {} took {:.0f} seconds to evaluate the validation set. ===='.format(epoch, time.time() - start_time))
 
-        # last_image = np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255
-        # scipy.misc.imsave(os.path.join(PROJECT_HOME, 'output', 'epoch_{}.png'.format(epoch)), last_image)
-        saver.save(sess, os.path.join(cur_checkpoint_path, 'model'), global_step=epoch)
+        last_image = np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255
+        scipy.misc.imsave(os.path.join(PROJECT_HOME, 'output', 'epoch_{}.png'.format(epoch)), last_image)
 
+        saver.save(sess, os.path.join(cur_checkpoint_path, 'model'), global_step=epoch)

@@ -17,26 +17,26 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 
-def batchnorm_layer(X, is_test, offset, scale, convolutional=False):
-    exp_moving_avg = tf.train.ExponentialMovingAverage(0.9999)
-    if convolutional:
-        mean, variance = tf.nn.moments(X, [0, 1, 2])
-    else:
-        mean, variance = tf.nn.moments(X, [0])
+# def batchnorm_layer(X, is_test, offset, scale, convolutional=False):
+#     exp_moving_avg = tf.train.ExponentialMovingAverage(0.9999)
+#     if convolutional:
+#         mean, variance = tf.nn.moments(X, [0, 1, 2])
+#     else:
+#         mean, variance = tf.nn.moments(X, [0])
+#
+#     update_moving_averages = exp_moving_avg.apply([mean, variance])
+#     m = tf.cond(is_test, lambda: exp_moving_avg.average(mean), lambda: mean)
+#     v = tf.cond(is_test, lambda: exp_moving_avg.average(variance), lambda: variance)
+#     bn = tf.nn.batch_normalization(X, m, v, offset, scale, variance_epsilon=1e-5)
+#     return bn, update_moving_averages
 
-    update_moving_averages = exp_moving_avg.apply([mean, variance])
-    m = tf.cond(is_test, lambda: exp_moving_avg.average(mean), lambda: mean)
-    v = tf.cond(is_test, lambda: exp_moving_avg.average(variance), lambda: variance)
-    bn = tf.nn.batch_normalization(X, m, v, offset, scale, variance_epsilon=1e-5)
-    return bn, update_moving_averages
 
-
-def conv_layer(X, filter_shape, is_test, stride=1, use_bn=False, name=None):
+def conv_layer(X, filter_shape, is_training, stride=1, use_bn=False, name=None):
     """
     :param X: the input data, which is of shape (N, H, W, C)
     :param filter_shape: the shape of filter, which is of shape (H, W, C)
     :param stride:
-    :param is_test: as the var name presents
+    :param is_training: as the var name presents
     :param use_bn: boolean param that indicates whether the conv_layer uses batchnorm whithin it
     :param name: tf's variable scope name
     :return:
@@ -51,10 +51,7 @@ def conv_layer(X, filter_shape, is_test, stride=1, use_bn=False, name=None):
             # scale = tf.Variable(tf.ones([filter_shape[2]]))  # aka. alpha
             # offset = tf.Variable(tf.zeros([filter_shape[2]]))  # aka. beta
             # bn, _ = batchnorm_layer(logits, is_test, offset, scale, convolutional=True)
-            bn = tf.contrib.layers.batch_norm(logits,
-                                              center=True, scale=True,
-                                              is_training=tf.equal(is_test, tf.constant(False)),
-                                              scope=scope)
+            bn = tf.contrib.layers.batch_norm(logits, is_training=is_training, center=True, scale=True, decay=0.95, updates_collections=None, scope='bn')
 
         relu = tf.nn.relu(bn if use_bn else logits)
 
