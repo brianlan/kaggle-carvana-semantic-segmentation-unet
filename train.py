@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 from logger import logger
 from model.unet import UNet
 from data_io import read_images, ImageFileName
+from image_op import save_image
 
 
 ######################################
@@ -17,11 +18,11 @@ from data_io import read_images, ImageFileName
 ######################################
 PROJECT_HOME = '/home/rlan/projects/Kaggle/Carnava/kaggle-carvana-semantic-segmentation-unet'
 CHECKPOINT_DIR = os.path.join(PROJECT_HOME, 'checkpoints')
-EPOCHS_ACCUMULATE_EACH_SAVING = 10
 INPUT_DIR = os.path.join(PROJECT_HOME, 'input')
 TRAIN_DATA_DIR = os.path.join(INPUT_DIR, 'train')
 TRAIN_MASK_DIR = os.path.join(INPUT_DIR, 'train_masks')
 
+EPOCHS_ACCUMULATE_EACH_SAVING = 10
 MAX_EPOCH = 50
 LEARNING_RATE = 1e-4
 NUM_CLASSES = 2
@@ -70,16 +71,16 @@ with tf.Session() as sess:
         val_data = read_images(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
                                file_names=fnames_validation)
         losses = []
-        for batch, (X_val_batch, y_val_batch) in enumerate(val_data):
+        for batch, (X_batch, y_batch) in enumerate(val_data):
             loss, pred = sess.run([unet.loss, unet.pred],
-                                  feed_dict={unet.is_training: False, unet.X_train: X_val_batch, unet.y_train: y_val_batch})
+                                  feed_dict={unet.is_training: False, unet.X_train: X_batch, unet.y_train: y_batch})
             losses.append(loss)
 
         logger.info('==== average validation error: {} ===='.format(np.average(losses)))
         logger.info('==== epoch {} took {:.0f} seconds to evaluate the validation set. ===='.format(epoch, time.time() - start_time))
 
         last_image = np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255
-        scipy.misc.imsave(os.path.join(PROJECT_HOME, 'output', 'epoch_{}.png'.format(epoch)), last_image)
+        save_image(last_image, os.path.join(PROJECT_HOME, 'sample_results', 'val', 'epoch_{}.png'.format(epoch)))
 
         if (epoch > 0 and epoch % EPOCHS_ACCUMULATE_EACH_SAVING == 0) or epoch == MAX_EPOCH - 1:
             saver.save(sess, os.path.join(cur_checkpoint_path, 'unet-{}'.format(INPUT_SHAPE)), global_step=epoch)

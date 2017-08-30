@@ -1,6 +1,6 @@
 import os
 
-import scipy
+from scipy.misc import imread, imresize
 import numpy as np
 
 
@@ -39,8 +39,8 @@ def read_images(data_dir, batch_size=16, as_shape=128, mask_dir=None, file_names
 
     def _read_img(data_dir, fname, shape, normalize=False, black_or_white=False):
         path = _c(data_dir, fname)
-        img = scipy.misc.imread(path)
-        img = scipy.misc.imresize(img, (shape, shape))
+        img = imread(path)
+        img = imresize(img, (shape, shape))
 
         if normalize:
             img = img // 255 if black_or_white else img / 255
