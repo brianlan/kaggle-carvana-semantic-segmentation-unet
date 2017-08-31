@@ -8,7 +8,7 @@ import numpy as np
 
 from data_io import read_images, ImageFileName
 from model.unet import UNet
-from image_op import save_image
+from image_op import save_image, resize_image, run_length_encode
 from logger import logger
 
 
@@ -17,6 +17,7 @@ INPUT_DIR = os.path.join(PROJECT_HOME, 'input')
 SUBMISSION_OUTPUT_DIR = os.path.join(PROJECT_HOME, 'output')
 MODEL_DIR = os.path.join(PROJECT_HOME, 'checkpoints', '1504019330')
 TEST_DATA_DIR = os.path.join(INPUT_DIR, 'test')
+ORIGINAL_IMAGE_SIZE = (1280, 1918)
 INPUT_SHAPE = 512
 BATCH_SIZE = 16
 NUM_CLASSES = 2
@@ -38,8 +39,11 @@ with tf.Session() as sess:
     start_time = time.time()
     for batch, (X_batch, _) in enumerate(test_data):
         pred, = sess.run([unet.pred], feed_dict={unet.is_training: False, unet.X_train: X_batch})
-        last_image = np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255
-        save_image(last_image, os.path.join(PROJECT_HOME, 'sample_results', 'test', 'batch_{}.png'.format(batch)))
+        for i in range(pred.shape[0]):
+            img = resize_image(np.argmax(pred[i, :, :, :], axis=2), *ORIGINAL_IMAGE_SIZE)
+            encoded = run_length_encode(img)
+        # last_image = resize_image(np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255, *ORIGINAL_IMAGE_SIZE)
+        # save_image(last_image, os.path.join(PROJECT_HOME, 'sample_results', 'test', 'batch_{}.png'.format(batch)))
         logger.info('[batch {}] took {:.0f} seconds to evaluate.'.format(batch, time.time() - start_time))
 
 pass
