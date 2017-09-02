@@ -10,13 +10,17 @@ def save_image(image: np.ndarray, save_path):
 
 
 def resize_image(image: np.ndarray, height, width):
-    return imresize(image, (height, width))
+    return imresize(image, (height, width), mode='L')
 
 
 def run_length_encode(image: np.ndarray):
     vector = image.T.reshape([image.shape[0] * image.shape[1]])
     starts, lengths, values = rlencode(vector)
-    return np.stack((starts[values == 1]+1, lengths[values == 1]), axis=1).tolist()
+    return np.stack((starts[values > 0]+1, lengths[values > 0]), axis=1).tolist()
+
+
+def flat(encoded):
+    return ' '.join([str(j) for i in encoded for j in i])
 
 
 def rlencode(x, dropna=False):

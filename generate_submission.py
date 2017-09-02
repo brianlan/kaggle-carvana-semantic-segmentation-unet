@@ -8,7 +8,7 @@ import numpy as np
 
 from data_io import read_images, ImageFileName
 from model.unet import UNet
-from image_op import save_image, resize_image, run_length_encode
+from image_op import save_image, resize_image, run_length_encode, flat
 from logger import logger
 
 
@@ -38,12 +38,17 @@ with tf.Session() as sess:
     ##########################
     start_time = time.time()
     for batch, (X_batch, _) in enumerate(test_data):
+        batch_start_time = time.time()
         pred, = sess.run([unet.pred], feed_dict={unet.is_training: False, unet.X_train: X_batch})
         for i in range(pred.shape[0]):
             img = resize_image(np.argmax(pred[i, :, :, :], axis=2), *ORIGINAL_IMAGE_SIZE)
             encoded = run_length_encode(img)
-        # last_image = resize_image(np.argmax(pred[pred.shape[0] - 1, :, :, :], axis=2) * 255, *ORIGINAL_IMAGE_SIZE)
-        # save_image(last_image, os.path.join(PROJECT_HOME, 'sample_results', 'test', 'batch_{}.png'.format(batch)))
-        logger.info('[batch {}] took {:.0f} seconds to evaluate.'.format(batch, time.time() - start_time))
+            sample_submission.iloc[batch * BATCH_SIZE + i, ]['rle_mask'] = flat(encoded)
 
-pass
+        logger.info('[batch {}] took {:.0f}s to eval. Total elapsed time: {:.0f}s'.format(batch,
+                                                                                          time.time() - batch_start_time,
+                                                                                          time.time() - start_time))
+
+    sample_submission.to_csv(os.path.join(SUBMISSION_OUTPUT_DIR, 'sample_submission.csv.gz'),
+                             index=False,
+                             compression='gzip')
