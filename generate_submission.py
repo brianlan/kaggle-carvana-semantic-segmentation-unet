@@ -28,7 +28,7 @@ INPUT_SHAPE = args.resolution
 BATCH_SIZE = 16
 NUM_CLASSES = 2
 
-sample_submission = pd.read_csv(os.path.join(INPUT_DIR, 'sample_submission_mvp.csv'))
+sample_submission = pd.read_csv(os.path.join(INPUT_DIR, 'sample_submission.csv'))
 fnames = [ImageFileName(f.split('.')[0]) for f in sample_submission['img'].tolist()]
 test_data = read_images(TEST_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, file_names=fnames)
 
