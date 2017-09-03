@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib.colors import rgb_to_hsv, hsv_to_rgb
 
 
 #####################################################################################################
@@ -14,6 +15,17 @@ def random_horizontal_flip(image, mask, u=0.5):
         mask = np.flip(mask, axis=2)
 
     return image, mask
+
+
+def random_hsv_shift(image, hue_shift_limit=(-1, 1), sat_shift_limit=(-1, 1), val_shift_limit=(-1, 1), u=0.5):
+    if np.random.random() < u:
+        hsv = rgb_to_hsv(image / 255.0)
+        hsv[:, :, :, 0] += np.random.uniform(*hue_shift_limit)
+        hsv[:, :, :, 1] += np.random.uniform(*sat_shift_limit)
+        hsv[:, :, :, 2] += np.random.uniform(*val_shift_limit)
+        image = hsv_to_rgb(hsv)
+
+    return image
 
 #
 # def randomHueSaturationValue(image, hue_shift_limit=(-180, 180),
