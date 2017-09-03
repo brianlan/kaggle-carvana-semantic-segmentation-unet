@@ -23,42 +23,65 @@ class ImageFileName(str):
         return '{}_mask.png'.format(self.fname)
 
 
-def read_images(data_dir, batch_size=16, as_shape=128, mask_dir=None, file_names=None):
-    """
-    If file_names not provided,
-    :param data_dir: dir of the data to be read
-    :param batch_size: size of a batch
-    :param file_names: if file_names not provided, all the data in data_dir will be read
-    :param mask_dir: if mask_dir is provided, not only the data, but also the mask (label) will be read
-    :param as_shape: will execute image reshape according to provided as_shape param.
-    :return: a 2-element tuple (train_data, train_mask), if mask_dir not provided, train_mask will be None
-    """
+class ImageReader:
+    def __init__(self, data_dir, batch_size=16, as_shape=128, mask_dir=None, file_names=None):
+        """
+        If file_names not provided,
+        :param data_dir: dir of the data to be read
+        :param batch_size: size of a batch
+        :param file_names: if file_names not provided, all the data in data_dir will be read
+        :param mask_dir: if mask_dir is provided, not only the data, but also the mask (label) will be read
+        :param as_shape: will execute image reshape according to provided as_shape param.
+        :return: a 2-element tuple (train_data, train_mask), if mask_dir not provided, train_mask will be None
+        """
+        self.data_dir = data_dir
+        self.batch_size = batch_size
+        self.as_shape = as_shape
+        self.mask_dir = mask_dir
+        self.file_names = file_names or [ImageFileName(f.split('.')[0]) for f in os.listdir(data_dir)]
+        self.num_total_batches = (len(file_names) - 1) // batch_size + 1
+        self.all_img_batches = []
+        self.all_mask_batches = []
+        self.data_pre_fetched = False
 
-    def _c(*args):
-        return os.path.join(*args)
+    def read(self):
+        def _c(*args):
+            return os.path.join(*args)
 
-    def _read_img(data_dir, fname, shape, normalize=False, black_or_white=False):
-        path = _c(data_dir, fname)
-        img = imread(path)
-        img = imresize(img, (shape, shape))
+        def _read_img(data_dir, fname, shape, normalize=False, black_or_white=False):
+            path = _c(data_dir, fname)
+            img = imread(path)
+            img = imresize(img, (shape, shape))
 
-        if normalize:
-            img = img // 255 if black_or_white else img / 255
+            if normalize:
+                img = img // 255 if black_or_white else img / 255
 
-        return img
+            return img
 
-    file_names = file_names or [ImageFileName(f.split('.')[0]) for f in os.listdir(data_dir)]
-    for start in range(0, len(file_names), batch_size):
-        img_batch = []
-        mask_batch = []
-        end = min(start + batch_size, len(file_names))
-        batch_fnames = file_names[start:end]
+        if self.data_pre_fetched:
+            for cur_batch_idx in range(self.num_total_batches):
+                yield self.all_img_batches[cur_batch_idx], self.all_mask_batches[cur_batch_idx]
+        else:
+            for start in range(0, len(self.file_names), self.batch_size):
+                img_batch = []
+                mask_batch = []
+                end = min(start + self.batch_size, len(self.file_names))
+                batch_fnames = self.file_names[start:end]
 
-        for f in batch_fnames:
-            img_batch.append(_read_img(data_dir, f.jpg, as_shape))
+                for f in batch_fnames:
+                    img_batch.append(_read_img(self.data_dir, f.jpg, self.as_shape))
 
-            if mask_dir:
-                im = _read_img(mask_dir, f.mask, as_shape, normalize=True, black_or_white=True)
-                mask_batch.append(np.expand_dims(im, axis=2))
+                    if self.mask_dir:
+                        im = _read_img(self.mask_dir, f.mask, self.as_shape, normalize=True, black_or_white=True)
+                        mask_batch.append(np.expand_dims(im, axis=2))
 
-        yield np.array(img_batch, np.float32), np.array(mask_batch, np.float32) if mask_dir else None
+                yield np.array(img_batch, np.float32), np.array(mask_batch, np.float32) if self.mask_dir else None
+
+    def pre_fetch(self):
+        if not self.data_pre_fetched:
+            r = self.read()
+            for img_batch, mask_batch in r:
+                self.all_img_batches.append(img_batch)
+                self.all_mask_batches.append(mask_batch)
+
+            self.data_pre_fetched = True

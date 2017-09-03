@@ -6,7 +6,7 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 
-from data_io import read_images, ImageFileName
+from data_io import ImageReader, ImageFileName
 from model.unet import UNet
 from image_op import resize_image, run_length_encode
 from logger import logger
@@ -30,7 +30,8 @@ NUM_CLASSES = 2
 
 sample_submission = pd.read_csv(os.path.join(INPUT_DIR, 'sample_submission.csv'))
 fnames = [ImageFileName(f.split('.')[0]) for f in sample_submission['img'].tolist()]
-test_data = read_images(TEST_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, file_names=fnames)
+test_img_reader = ImageReader(TEST_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, file_names=fnames)
+test_data = test_img_reader.read()
 
 with tf.Session() as sess:
     unet = UNet(num_classes=NUM_CLASSES, input_shape=INPUT_SHAPE)
