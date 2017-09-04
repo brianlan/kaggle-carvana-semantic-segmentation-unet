@@ -24,7 +24,8 @@ class ImageFileName(str):
 
 
 class ImageReader:
-    def __init__(self, data_dir, batch_size=16, as_shape=128, mask_dir=None, file_names=None):
+    def __init__(self, data_dir, batch_size=16, as_shape=128, mask_dir=None, file_names=None,
+                 random_horizontal_flipper=None, random_hsv_shifter=None):
         """
         If file_names not provided,
         :param data_dir: dir of the data to be read
@@ -38,6 +39,8 @@ class ImageReader:
         self.batch_size = batch_size
         self.as_shape = as_shape
         self.mask_dir = mask_dir
+        self.random_horizontal_flipper = random_horizontal_flipper
+        self.random_hsv_shifter = random_hsv_shifter
         self.file_names = file_names or [ImageFileName(f.split('.')[0]) for f in os.listdir(data_dir)]
         self.num_total_batches = (len(file_names) - 1) // batch_size + 1
         self.all_img_batches = []
@@ -75,7 +78,16 @@ class ImageReader:
                         im = _read_img(self.mask_dir, f.mask, self.as_shape, normalize=True, black_or_white=True)
                         mask_batch.append(np.expand_dims(im, axis=2))
 
-                yield np.array(img_batch, np.float32), np.array(mask_batch, np.float32) if self.mask_dir else None
+                img_batch = np.array(img_batch, np.float32)
+                mask_batch = np.array(mask_batch, np.float32) if self.mask_dir else None
+
+                if self.random_horizontal_flipper:
+                    img_batch, mask_batch = self.random_horizontal_flipper(img_batch, mask_batch)
+
+                if self.random_hsv_shifter:
+                    img_batch = self.random_hsv_shifter(img_batch)
+
+                yield img_batch, mask_batch
 
     def pre_fetch(self):
         if not self.data_pre_fetched:

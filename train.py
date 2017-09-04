@@ -30,7 +30,7 @@ TRAIN_DATA_DIR = os.path.join(INPUT_DIR, 'train')
 TRAIN_MASK_DIR = os.path.join(INPUT_DIR, 'train_masks')
 
 EPOCHS_ACCUMULATE_EACH_SAVING = 10
-MAX_EPOCH = 50
+MAX_EPOCH = 40
 LEARNING_RATE = 1e-4
 NUM_CLASSES = 2
 BATCH_SIZE = 16
@@ -43,6 +43,10 @@ EARLY_STOPPING_PATIENCE = 10
 df = pd.read_csv(os.path.join(INPUT_DIR, 'train_masks.csv'))
 fnames = [ImageFileName(f.split('.')[0]) for f in df['img'].tolist()]
 fnames_train, fnames_validation = train_test_split(fnames, test_size=0.2, random_state=233)
+
+
+def random_hsv_shifter(x):
+    return random_hsv_shift(x, hue_shift_limit=(-0.15, 0.15), sat_shift_limit=(-0.02, 0.02), val_shift_limit=(-0.06, 0.06))
 
 train_img_reader = ImageReader(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
                                file_names=fnames_train)
@@ -63,6 +67,7 @@ cur_checkpoint_path = os.path.join(CHECKPOINT_DIR, args.model_folder)
 if not os.path.exists(cur_checkpoint_path):
     os.makedirs(cur_checkpoint_path)
 
+
 def main():
     with tf.Session() as sess:
         unet = UNet(num_classes=NUM_CLASSES, input_shape=INPUT_SHAPE, learning_rate=LEARNING_RATE)
@@ -81,11 +86,6 @@ def main():
             start_time = time.time()
             train_data = train_img_reader.read()
             for batch, (X_batch, y_batch) in enumerate(train_data):
-                X_batch, y_batch = random_horizontal_flip(X_batch, y_batch)
-                X_batch = random_hsv_shift(X_batch,
-                                           hue_shift_limit=(-0.15, 0.15),
-                                           sat_shift_limit=(-0.02, 0.02),
-                                           val_shift_limit=(-0.06, 0.06))
                 _, loss, pred = sess.run([unet.train_op, unet.loss, unet.pred],
                                          feed_dict={unet.is_training: True, unet.X_train: X_batch, unet.y_train: y_batch})
                 logger.info('[epoch {}, batch {}] training loss: {}'.format(epoch, batch, loss))
@@ -107,14 +107,14 @@ def main():
             logger.info('==== average validation loss: {} ===='.format(avg_val_loss))
             logger.info('==== epoch {} took {:.0f} seconds to evaluate the validation set. ===='.format(epoch, time.time() - start_time))
 
+            def save_checkpoint(sess):
+                saver.save(sess, os.path.join(cur_checkpoint_path, 'unet-{}'.format(INPUT_SHAPE)), global_step=epoch)
+
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
                 num_consecutive_worse = 0
             else:
                 num_consecutive_worse += 1
-
-            def save_checkpoint(sess):
-                saver.save(sess, os.path.join(cur_checkpoint_path, 'unet-{}'.format(INPUT_SHAPE)), global_step=epoch)
 
             if num_consecutive_worse >= EARLY_STOPPING_PATIENCE:
                 logger.info('==== Training early stopped because worse val loss lasts for {} epochs. ===='.format(num_consecutive_worse))
