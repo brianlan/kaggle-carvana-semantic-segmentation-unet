@@ -23,6 +23,8 @@ def random_hsv_shift(image, hue_shift_limit=(-1, 1), sat_shift_limit=(-1, 1), va
         hsv[:, :, :, 0] += np.random.uniform(*hue_shift_limit)
         hsv[:, :, :, 1] += np.random.uniform(*sat_shift_limit)
         hsv[:, :, :, 2] += np.random.uniform(*val_shift_limit)
+        hsv[hsv > 1] = 1
+        hsv[hsv < 0] = 0
         image = hsv_to_rgb(hsv)
 
     return image

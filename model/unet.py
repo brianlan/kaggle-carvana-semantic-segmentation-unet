@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-from .helpers import conv_layer, max_pooling_layer, up_sampling_layer
+from .helpers import conv_layer, max_pooling_layer, up_sampling_layer, dice_loss
 
 
 class NotSupportedUNetResolution(Exception):
@@ -90,6 +90,7 @@ class UNet:
             # self.flat_y_train = tf.reshape(self.y_train, [-1])
             # self.flat_pred = tf.reshape(self.pred, [-1, self.num_classes])
             self.loss = tf.reduce_mean(
+                dice_loss(tf.reshape(self.y_train, [-1]), tf.reshape(self.pred, [-1, self.num_classes])) +
                 tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.reshape(self.y_train, [-1]),
                                                                logits=tf.reshape(self.pred, [-1, self.num_classes])))
             self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate, decay=0.9)

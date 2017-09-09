@@ -15,6 +15,7 @@ from logger import logger
 parser = argparse.ArgumentParser(description='Generate Submissions for Kaggle Carvana Challenge')
 parser.add_argument('--model-folder', type=str, required=True, help='the model folder name of training result')
 parser.add_argument('--resolution', type=int, choices=[128, 256, 512, 1024], required=True, help='resolution of unet')
+parser.add_argument('--batch-size', type=int, required=True, help='batch size')
 
 args = parser.parse_args()
 
@@ -25,7 +26,7 @@ MODEL_DIR = os.path.join(PROJECT_HOME, 'checkpoints', args.model_folder)
 TEST_DATA_DIR = os.path.join(INPUT_DIR, 'test')
 ORIGINAL_IMAGE_SIZE = (1280, 1918)
 INPUT_SHAPE = args.resolution
-BATCH_SIZE = 16
+BATCH_SIZE = args.batch_size
 NUM_CLASSES = 2
 
 sample_submission = pd.read_csv(os.path.join(INPUT_DIR, 'sample_submission.csv'))

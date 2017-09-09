@@ -11,12 +11,15 @@ from sklearn.model_selection import train_test_split
 from logger import logger
 from model.unet import UNet
 from data_io import ImageFileName, ImageReader
-from image_synthesis import random_horizontal_flip, random_hsv_shift
+from image_augment import random_horizontal_flip, random_hsv_shift
+from utils import store_true
 
 
 parser = argparse.ArgumentParser(description='Training phase for Kaggle Carvana Challenge')
 parser.add_argument('--model-folder', type=str, required=True, help='the model folder name of training result')
 parser.add_argument('--resolution', type=int, choices=[128, 256, 512, 1024], required=True, help='resolution of unet')
+parser.add_argument('--batch-size', type=int, required=True, help='batch size')
+parser.add_argument('--image-prefetch', dest='image_prefetch', default=False, action="store_true", help='whether prefetch data into memory.')
 
 args = parser.parse_args()
 
@@ -33,7 +36,7 @@ EPOCHS_ACCUMULATE_EACH_SAVING = 10
 MAX_EPOCH = 40
 LEARNING_RATE = 1e-4
 NUM_CLASSES = 2
-BATCH_SIZE = 16
+BATCH_SIZE = args.batch_size
 INPUT_SHAPE = args.resolution
 EARLY_STOPPING_PATIENCE = 10
 
@@ -46,19 +49,25 @@ fnames_train, fnames_validation = train_test_split(fnames, test_size=0.2, random
 
 
 def random_hsv_shifter(x):
-    return random_hsv_shift(x, hue_shift_limit=(-0.15, 0.15), sat_shift_limit=(-0.02, 0.02), val_shift_limit=(-0.06, 0.06))
+    return random_hsv_shift(x, hue_shift_limit=(-0.28, 0.28), sat_shift_limit=(-0.02, 0.02), val_shift_limit=(-0.06, 0.06))
 
+
+# train_img_reader = ImageReader(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
+#                                file_names=fnames_train, random_horizontal_flipper=random_horizontal_flip,
+#                                random_hsv_shifter=random_hsv_shifter)
 train_img_reader = ImageReader(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
                                file_names=fnames_train)
 val_img_reader = ImageReader(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
                              file_names=fnames_validation)
-t0 = time.time()
-train_img_reader.pre_fetch()
-logger.info('==== Training data pre-fetch took {:.2f}s. ===='.format(time.time() - t0))
 
-t0 = time.time()
-val_img_reader.pre_fetch()
-logger.info('==== Validation data pre-fetch took {:.2f}s. ===='.format(time.time() - t0))
+if args.image_prefetch:
+    t0 = time.time()
+    train_img_reader.pre_fetch()
+    logger.info('==== Training data pre-fetch took {:.2f}s. ===='.format(time.time() - t0))
+
+    t0 = time.time()
+    val_img_reader.pre_fetch()
+    logger.info('==== Validation data pre-fetch took {:.2f}s. ===='.format(time.time() - t0))
 
 ######################################
 #  Build Graph and Evaluation
@@ -67,6 +76,9 @@ cur_checkpoint_path = os.path.join(CHECKPOINT_DIR, args.model_folder)
 if not os.path.exists(cur_checkpoint_path):
     os.makedirs(cur_checkpoint_path)
 
+
+# TODO: Image Augment
+# TODO: Learning Rate Decay
 
 def main():
     with tf.Session() as sess:

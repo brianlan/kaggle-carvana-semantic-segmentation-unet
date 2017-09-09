@@ -47,7 +47,7 @@ class ImageReader:
         self.all_mask_batches = []
         self.data_pre_fetched = False
 
-    def read(self):
+    def read(self, prefetch=False):
         def _c(*args):
             return os.path.join(*args)
 
@@ -63,7 +63,13 @@ class ImageReader:
 
         if self.data_pre_fetched:
             for cur_batch_idx in range(self.num_total_batches):
-                yield self.all_img_batches[cur_batch_idx], self.all_mask_batches[cur_batch_idx]
+                img_batch, mask_batch = self.all_img_batches[cur_batch_idx], self.all_mask_batches[cur_batch_idx]
+                if self.random_horizontal_flipper:
+                    img_batch, mask_batch = self.random_horizontal_flipper(img_batch, mask_batch)
+                if self.random_hsv_shifter:
+                    img_batch = self.random_hsv_shifter(img_batch)
+
+                yield img_batch, mask_batch
         else:
             for start in range(0, len(self.file_names), self.batch_size):
                 img_batch = []
@@ -81,17 +87,18 @@ class ImageReader:
                 img_batch = np.array(img_batch, np.float32)
                 mask_batch = np.array(mask_batch, np.float32) if self.mask_dir else None
 
-                if self.random_horizontal_flipper:
-                    img_batch, mask_batch = self.random_horizontal_flipper(img_batch, mask_batch)
+                if not prefetch:
+                    if self.random_horizontal_flipper:
+                        img_batch, mask_batch = self.random_horizontal_flipper(img_batch, mask_batch)
 
-                if self.random_hsv_shifter:
-                    img_batch = self.random_hsv_shifter(img_batch)
+                    if self.random_hsv_shifter:
+                        img_batch = self.random_hsv_shifter(img_batch)
 
                 yield img_batch, mask_batch
 
     def pre_fetch(self):
         if not self.data_pre_fetched:
-            r = self.read()
+            r = self.read(prefetch=True)
             for img_batch, mask_batch in r:
                 self.all_img_batches.append(img_batch)
                 self.all_mask_batches.append(mask_batch)

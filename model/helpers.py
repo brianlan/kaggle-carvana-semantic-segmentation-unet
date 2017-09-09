@@ -17,18 +17,16 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 
-# def batchnorm_layer(X, is_test, offset, scale, convolutional=False):
-#     exp_moving_avg = tf.train.ExponentialMovingAverage(0.9999)
-#     if convolutional:
-#         mean, variance = tf.nn.moments(X, [0, 1, 2])
-#     else:
-#         mean, variance = tf.nn.moments(X, [0])
-#
-#     update_moving_averages = exp_moving_avg.apply([mean, variance])
-#     m = tf.cond(is_test, lambda: exp_moving_avg.average(mean), lambda: mean)
-#     v = tf.cond(is_test, lambda: exp_moving_avg.average(variance), lambda: variance)
-#     bn = tf.nn.batch_normalization(X, m, v, offset, scale, variance_epsilon=1e-5)
-#     return bn, update_moving_averages
+def dice_loss(y_true, y_pred):
+    smooth = tf.constant(1., dtype=tf.float32)
+    factor = tf.constant(2., dtype=tf.float32)
+    y_true = tf.cast(y_true, dtype=tf.float32)
+    y_pred = tf.cast(tf.argmax(y_pred, axis=1), dtype=tf.float32)
+
+    intersection = tf.reduce_sum(y_true * y_pred)
+    score = (factor * intersection + smooth) / (tf.reduce_sum(y_true) + tf.reduce_sum(y_pred) + smooth)
+    loss = 1 - score
+    return loss
 
 
 def conv_layer(X, filter_shape, is_training, stride=1, use_bn=False, name=None):
