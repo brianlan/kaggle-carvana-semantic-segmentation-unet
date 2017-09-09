@@ -38,7 +38,9 @@ LEARNING_RATE = 1e-4
 NUM_CLASSES = 2
 BATCH_SIZE = args.batch_size
 INPUT_SHAPE = args.resolution
-EARLY_STOPPING_PATIENCE = 10
+EARLY_STOPPING_PATIENCE = 8
+LR_REDUCE_PATIENCE = 4
+LR_REDUCE_FACTOR = 0.1
 
 ######################################
 #  Prepare Train / Validation Data
@@ -82,14 +84,15 @@ if not os.path.exists(cur_checkpoint_path):
 
 def main():
     with tf.Session() as sess:
-        unet = UNet(num_classes=NUM_CLASSES, input_shape=INPUT_SHAPE, learning_rate=LEARNING_RATE)
+        unet = UNet(num_classes=NUM_CLASSES, input_shape=INPUT_SHAPE)
         unet.build()
         init = tf.global_variables_initializer()
         sess.run(init)
         saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
 
         best_val_loss = 9999999
-        num_consecutive_worse = 0
+        num_consec_worse_earlystop = 0
+        num_consec_worse_lr = 0
 
         for epoch in range(MAX_EPOCH):
             ##############
@@ -99,7 +102,8 @@ def main():
             train_data = train_img_reader.read()
             for batch, (X_batch, y_batch) in enumerate(train_data):
                 _, loss, pred = sess.run([unet.train_op, unet.loss, unet.pred],
-                                         feed_dict={unet.is_training: True, unet.X_train: X_batch, unet.y_train: y_batch})
+                                         feed_dict={unet.is_training: True, unet.X_train: X_batch,
+                                                    unet.y_train: y_batch, unet.learning_rate: LEARNING_RATE})
                 logger.info('[epoch {}, batch {}] training loss: {}'.format(epoch, batch, loss))
 
             logger.info('==== epoch {} took {:.0f} seconds to train. ===='.format(epoch, time.time() - start_time))
@@ -124,12 +128,20 @@ def main():
 
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
-                num_consecutive_worse = 0
+                num_consec_worse_earlystop = 0
+                num_consec_worse_lr = 0
             else:
-                num_consecutive_worse += 1
+                num_consec_worse_earlystop += 1
+                num_consec_worse_lr += 1
 
-            if num_consecutive_worse >= EARLY_STOPPING_PATIENCE:
-                logger.info('==== Training early stopped because worse val loss lasts for {} epochs. ===='.format(num_consecutive_worse))
+            if num_consec_worse_lr >= LR_REDUCE_PATIENCE:
+                LEARNING_RATE *= LR_REDUCE_FACTOR
+                logger.info('==== val loss did not improve for {} epochs, learning rate reduced to {}. ===='.format(
+                    num_consec_worse_lr, LEARNING_RATE))
+                num_consec_worse_lr = 0
+
+            if num_consec_worse_earlystop >= EARLY_STOPPING_PATIENCE:
+                logger.info('==== Training early stopped because worse val loss lasts for {} epochs. ===='.format(num_consec_worse_earlystop))
                 save_checkpoint(sess)
                 break
 

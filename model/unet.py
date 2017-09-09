@@ -11,7 +11,7 @@ class NotSupportedUNetResolution(Exception):
 class UNet:
     lookup_table = {128: 64, 256: 32, 512: 16, 1024: 8}
 
-    def __init__(self, num_classes, input_shape=128, learning_rate=1e-5, tf_scope='unet'):
+    def __init__(self, num_classes, input_shape=128, tf_scope='unet'):
         if input_shape not in [128, 256, 512, 1024]:
             raise NotSupportedUNetResolution('Only 128, 256, 512 and 1024 are valid shape for UNet, but {!r} is given.'.format(input_shape))
 
@@ -19,7 +19,7 @@ class UNet:
         self.num_classes = num_classes
         self.is_training = tf.placeholder(tf.bool)
         self.input_shape = input_shape
-        self.learning_rate = learning_rate
+        self.learning_rate = 1e-4
         self.start_num_filters = self.lookup_table[input_shape]
         self.X_train = tf.placeholder(tf.float32, shape=(None, self.input_shape, self.input_shape, 3), name='X_train')
         self.y_train = tf.placeholder(tf.int32, shape=(None, self.input_shape, self.input_shape, 1), name='y_train')
