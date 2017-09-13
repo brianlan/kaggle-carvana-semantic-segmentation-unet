@@ -19,7 +19,7 @@ class UNet:
         self.num_classes = num_classes
         self.is_training = tf.placeholder(tf.bool)
         self.input_shape = input_shape
-        self.learning_rate = 1e-4
+        self.learning_rate = tf.placeholder(tf.float32)
         self.start_num_filters = self.lookup_table[input_shape]
         self.X_train = tf.placeholder(tf.float32, shape=(None, self.input_shape, self.input_shape, 3), name='X_train')
         self.y_train = tf.placeholder(tf.int32, shape=(None, self.input_shape, self.input_shape, 1), name='y_train')
