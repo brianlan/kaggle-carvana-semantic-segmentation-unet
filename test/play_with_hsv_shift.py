@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.misc import imread, imshow, imsave
+from scipy.misc import imread, imshow, imsave, imresize
 from matplotlib.colors import rgb_to_hsv, hsv_to_rgb
 
 
@@ -45,4 +45,15 @@ def test_hsv_shift():
     cv2.imwrite('/tmp/hsv2.png', cv_img2)
 
 
-test_hsv_shift()
+# def test_hsv_shift2():
+#     with open('/tmp/cv2_random_hsv/cv2_random_hsv.txt', 'r') as f:
+#         lines = f.readlines()
+#         for line in lines:
+#             img_name, hue_shift, sat_shift, val_shift = line.split(',')
+#             img = imread('/home/rlan/projects/Kaggle/Carnava/kaggle-carvana-semantic-segmentation-unet/input/train/{}.jpg'.format(img_name))
+#             img = imresize(img, (128, 128))
+#             img2 = random_hsv_shift(img, float(hue_shift) / 180.0, float(sat_shift) / 255.0, float(val_shift) / 255.0)
+#             imsave('/tmp/matplotlib_random_hsv/{}_rlan.png'.format(img_name), img2)
+
+
+# test_hsv_shift2()

@@ -24,8 +24,7 @@ class ImageFileName(str):
 
 
 class ImageReader:
-    def __init__(self, data_dir, batch_size=16, as_shape=128, mask_dir=None, file_names=None,
-                 random_horizontal_flipper=None, random_hsv_shifter=None):
+    def __init__(self, data_dir, batch_size=16, as_shape=128, mask_dir=None, file_names=None, image_augments=None):
         """
         If file_names not provided,
         :param data_dir: dir of the data to be read
@@ -39,8 +38,7 @@ class ImageReader:
         self.batch_size = batch_size
         self.as_shape = as_shape
         self.mask_dir = mask_dir
-        self.random_horizontal_flipper = random_horizontal_flipper
-        self.random_hsv_shifter = random_hsv_shifter
+        self.image_augments = [] if image_augments is None else image_augments
         self.file_names = file_names or [ImageFileName(f.split('.')[0]) for f in os.listdir(data_dir)]
         self.num_total_batches = (len(file_names) - 1) // batch_size + 1
         self.all_img_batches = []
@@ -64,10 +62,8 @@ class ImageReader:
         if self.data_pre_fetched:
             for cur_batch_idx in range(self.num_total_batches):
                 img_batch, mask_batch = self.all_img_batches[cur_batch_idx], self.all_mask_batches[cur_batch_idx]
-                if self.random_horizontal_flipper:
-                    img_batch, mask_batch = self.random_horizontal_flipper(img_batch, mask_batch)
-                if self.random_hsv_shifter:
-                    img_batch = self.random_hsv_shifter(img_batch)
+                for ia in self.image_augments:
+                    image_batch, mask_batch = ia(image_batch, mask_batch)
 
                 yield img_batch, mask_batch
         else:
@@ -88,11 +84,8 @@ class ImageReader:
                 mask_batch = np.array(mask_batch, np.float32) if self.mask_dir else None
 
                 if not prefetch:
-                    if self.random_horizontal_flipper:
-                        img_batch, mask_batch = self.random_horizontal_flipper(img_batch, mask_batch)
-
-                    if self.random_hsv_shifter:
-                        img_batch = self.random_hsv_shifter(img_batch)
+                    for ia in self.image_augments:
+                        image_batch, mask_batch = ia(image_batch, mask_batch)
 
                 yield img_batch, mask_batch
 

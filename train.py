@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from logger import logger
 from model.unet import UNet
 from data_io import ImageFileName, ImageReader
-from image_augment import random_horizontal_flip, random_hsv_shift
+from image_augment import random_horizontal_flip, random_hsv_shift, random_shift_scale_rotate
 from utils import store_true
 
 
@@ -34,7 +34,6 @@ TRAIN_MASK_DIR = os.path.join(INPUT_DIR, 'train_masks')
 
 EPOCHS_ACCUMULATE_EACH_SAVING = 10
 MAX_EPOCH = 40
-LEARNING_RATE = 1e-4
 NUM_CLASSES = 2
 BATCH_SIZE = args.batch_size
 INPUT_SHAPE = args.resolution
@@ -50,15 +49,18 @@ fnames = [ImageFileName(f.split('.')[0]) for f in df['img'].tolist()]
 fnames_train, fnames_validation = train_test_split(fnames, test_size=0.2, random_state=233)
 
 
-def random_hsv_shifter(x):
-    return random_hsv_shift(x, hue_shift_limit=(-0.28, 0.28), sat_shift_limit=(-0.02, 0.02), val_shift_limit=(-0.06, 0.06))
+def random_hsv_shifter(image, mask):
+    return random_hsv_shift(image, mask, hue_shift_limit=(-50, 50), sat_shift_limit=(-5, 5), val_shift_limit=(-15, 15))
 
 
-# train_img_reader = ImageReader(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
-#                                file_names=fnames_train, random_horizontal_flipper=random_horizontal_flip,
-#                                random_hsv_shifter=random_hsv_shifter)
+def random_shift_scale_rotate_operator(image, mask):
+    return random_shift_scale_rotate(image, mask, shift_limit=(-0.0625, 0.0625), scale_limit=(-0.1, 0.1), rotate_limit=(-0, 0))
+
+
 train_img_reader = ImageReader(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
-                               file_names=fnames_train)
+                               file_names=fnames_train,
+                               image_augments=[random_hsv_shifter, random_shift_scale_rotate_operator,
+                                               random_horizontal_flip])
 val_img_reader = ImageReader(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
                              file_names=fnames_validation)
 
@@ -80,7 +82,6 @@ if not os.path.exists(cur_checkpoint_path):
 
 
 # TODO: Image Augment
-# TODO: Learning Rate Decay
 
 def main():
     with tf.Session() as sess:
@@ -93,6 +94,7 @@ def main():
         best_val_loss = 9999999
         num_consec_worse_earlystop = 0
         num_consec_worse_lr = 0
+        learning_rate = 1e-4
 
         for epoch in range(MAX_EPOCH):
             ##############
@@ -103,7 +105,7 @@ def main():
             for batch, (X_batch, y_batch) in enumerate(train_data):
                 _, loss, pred = sess.run([unet.train_op, unet.loss, unet.pred],
                                          feed_dict={unet.is_training: True, unet.X_train: X_batch,
-                                                    unet.y_train: y_batch, unet.learning_rate: LEARNING_RATE})
+                                                    unet.y_train: y_batch, unet.learning_rate: learning_rate})
                 logger.info('[epoch {}, batch {}] training loss: {}'.format(epoch, batch, loss))
 
             logger.info('==== epoch {} took {:.0f} seconds to train. ===='.format(epoch, time.time() - start_time))
@@ -135,9 +137,9 @@ def main():
                 num_consec_worse_lr += 1
 
             if num_consec_worse_lr >= LR_REDUCE_PATIENCE:
-                LEARNING_RATE *= LR_REDUCE_FACTOR
+                learning_rate *= LR_REDUCE_FACTOR
                 logger.info('==== val loss did not improve for {} epochs, learning rate reduced to {}. ===='.format(
-                    num_consec_worse_lr, LEARNING_RATE))
+                    num_consec_worse_lr, learning_rate))
                 num_consec_worse_lr = 0
 
             if num_consec_worse_earlystop >= EARLY_STOPPING_PATIENCE:
