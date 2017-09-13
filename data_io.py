@@ -63,7 +63,7 @@ class ImageReader:
             for cur_batch_idx in range(self.num_total_batches):
                 img_batch, mask_batch = self.all_img_batches[cur_batch_idx], self.all_mask_batches[cur_batch_idx]
                 for ia in self.image_augments:
-                    image_batch, mask_batch = ia(image_batch, mask_batch)
+                    img_batch, mask_batch = ia(img_batch, mask_batch)
 
                 yield img_batch, mask_batch
         else:
@@ -84,8 +84,8 @@ class ImageReader:
                 mask_batch = np.array(mask_batch, np.float32) if self.mask_dir else None
 
                 if not prefetch:
-                    for ia in self.image_augments:
-                        image_batch, mask_batch = ia(image_batch, mask_batch)
+                    for aug_func in self.image_augments:
+                        img_batch, mask_batch = aug_func(img_batch, mask_batch)
 
                 yield img_batch, mask_batch
 
