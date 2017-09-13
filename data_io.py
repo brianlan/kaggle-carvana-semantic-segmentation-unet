@@ -1,6 +1,6 @@
 import os
 
-from scipy.misc import imread, imresize
+import cv2
 import numpy as np
 
 
@@ -49,10 +49,15 @@ class ImageReader:
         def _c(*args):
             return os.path.join(*args)
 
-        def _read_img(data_dir, fname, shape, normalize=False, black_or_white=False):
+        def _read_img(data_dir, fname, shape, is_mask=False, normalize=False, black_or_white=False):
             path = _c(data_dir, fname)
-            img = imread(path)
-            img = imresize(img, (shape, shape))
+            if is_mask:
+                img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+                img = cv2.resize(img, (shape, shape))
+                img = np.expand_dims(img, axis=2)
+            else:
+                img = cv2.imread(path)
+                img = cv2.resize(img, (shape, shape))
 
             if normalize:
                 img = img // 255 if black_or_white else img / 255
@@ -77,8 +82,9 @@ class ImageReader:
                     img_batch.append(_read_img(self.data_dir, f.jpg, self.as_shape))
 
                     if self.mask_dir:
-                        im = _read_img(self.mask_dir, f.mask, self.as_shape, normalize=True, black_or_white=True)
-                        mask_batch.append(np.expand_dims(im, axis=2))
+                        im = _read_img(self.mask_dir, f.mask, self.as_shape, is_mask=True, normalize=True,
+                                       black_or_white=True)
+                        mask_batch.append(im)
 
                 img_batch = np.array(img_batch, np.float32)
                 mask_batch = np.array(mask_batch, np.float32) if self.mask_dir else None
