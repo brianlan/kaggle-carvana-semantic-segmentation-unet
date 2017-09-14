@@ -49,21 +49,6 @@ class ImageReader:
         def _c(*args):
             return os.path.join(*args)
 
-        def _read_img(data_dir, fname, shape, is_mask=False, normalize=False, black_or_white=False):
-            path = _c(data_dir, fname)
-            if is_mask:
-                img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-                img = cv2.resize(img, (shape, shape))
-                img = np.expand_dims(img, axis=2)
-            else:
-                img = cv2.imread(path)
-                img = cv2.resize(img, (shape, shape))
-
-            if normalize:
-                img = img // 255 if black_or_white else img / 255
-
-            return img
-
         if self.data_pre_fetched:
             for cur_batch_idx in range(self.num_total_batches):
                 img_batch, mask_batch = self.all_img_batches[cur_batch_idx], self.all_mask_batches[cur_batch_idx]
@@ -75,23 +60,32 @@ class ImageReader:
             for start in range(0, len(self.file_names), self.batch_size):
                 img_batch = []
                 mask_batch = []
+                mask = None
                 end = min(start + self.batch_size, len(self.file_names))
                 batch_fnames = self.file_names[start:end]
 
                 for f in batch_fnames:
-                    img_batch.append(_read_img(self.data_dir, f.jpg, self.as_shape))
+                    img = cv2.imread(_c(self.data_dir, f.jpg))
+                    img = cv2.resize(img, (self.as_shape, self.as_shape))
 
                     if self.mask_dir:
-                        im = _read_img(self.mask_dir, f.mask, self.as_shape, is_mask=True, normalize=True,
-                                       black_or_white=True)
-                        mask_batch.append(im)
+                        mask = cv2.imread(_c(self.mask_dir, f.mask), cv2.IMREAD_GRAYSCALE)
+                        mask = cv2.resize(mask, (self.as_shape, self.as_shape))
+                        # mask = mask // 255
+
+                    if not prefetch:
+                        for aug_func in self.image_augments:
+                            img, mask = aug_func(img, mask)
+
+                    mask = np.expand_dims(mask, axis=2)
+                    img_batch.append(img)
+                    mask_batch.append(mask)
 
                 img_batch = np.array(img_batch, np.float32)
                 mask_batch = np.array(mask_batch, np.float32) if self.mask_dir else None
 
-                if not prefetch:
-                    for aug_func in self.image_augments:
-                        img_batch, mask_batch = aug_func(img_batch, mask_batch)
+                # for i in range(img_batch.shape[0]):
+                #     cv2.imwrite('/tmp/mine/{}.jpg'.format(batch_fnames[i]), img_batch[i, :, :, :])
 
                 yield img_batch, mask_batch
 

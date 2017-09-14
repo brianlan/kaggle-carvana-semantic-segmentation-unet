@@ -49,12 +49,12 @@ fnames = [ImageFileName(f.split('.')[0]) for f in df['img'].tolist()]
 fnames_train, fnames_validation = train_test_split(fnames, test_size=0.2, random_state=233)
 
 
-def random_hsv_shifter(image, mask):
-    return random_hsv_shift(image, mask, hue_shift_limit=(-50, 50), sat_shift_limit=(-5, 5), val_shift_limit=(-15, 15))
+def random_hsv_shifter(image, mask, u=0.5):
+    return random_hsv_shift(image, mask, hue_shift_limit=(-50, 50), sat_shift_limit=(-5, 5), val_shift_limit=(-15, 15), u=u)
 
 
-def random_shift_scale_rotate_operator(image, mask):
-    return random_shift_scale_rotate(image, mask, shift_limit=(-0.0625, 0.0625), scale_limit=(-0.1, 0.1), rotate_limit=(-0, 0))
+def random_shift_scale_rotate_operator(image, mask, u=0.5):
+    return random_shift_scale_rotate(image, mask, shift_limit=(-0.0625, 0.0625), scale_limit=(-0.1, 0.1), rotate_limit=(-0, 0), u=u)
 
 
 train_img_reader = ImageReader(TRAIN_DATA_DIR, batch_size=BATCH_SIZE, as_shape=INPUT_SHAPE, mask_dir=TRAIN_MASK_DIR,
@@ -80,8 +80,6 @@ cur_checkpoint_path = os.path.join(CHECKPOINT_DIR, args.model_folder)
 if not os.path.exists(cur_checkpoint_path):
     os.makedirs(cur_checkpoint_path)
 
-
-# TODO: Image Augment
 
 def main():
     with tf.Session() as sess:
