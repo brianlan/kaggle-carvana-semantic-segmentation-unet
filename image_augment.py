@@ -11,6 +11,7 @@ def random_horizontal_flip(image, mask, u=0.5):
     if np.random.random() < u:
         image = cv2.flip(image, 1)
         mask = cv2.flip(mask, 1)
+        mask = np.expand_dims(mask, axis=2)
 
     return image, mask
 

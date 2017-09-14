@@ -54,7 +54,7 @@ class ImageReader:
                 img_batch, mask_batch = self.all_img_batches[cur_batch_idx], self.all_mask_batches[cur_batch_idx]
                 for i in range(img_batch.shape[0]):
                     for aug_func in self.image_augments:
-                        img_batch[i, ...], mask_batch[i, :, :, 0] = aug_func(img_batch[i, ...], mask_batch[i, ...])
+                        img_batch[i, ...], mask_batch[i, ...] = aug_func(img_batch[i, ...], mask_batch[i, ...])
 
                 yield img_batch, mask_batch
         else:
