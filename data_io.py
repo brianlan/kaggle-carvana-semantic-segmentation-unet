@@ -61,28 +61,27 @@ class ImageReader:
             for start in range(0, len(self.file_names), self.batch_size):
                 img_batch = []
                 mask_batch = []
-                mask = None
                 end = min(start + self.batch_size, len(self.file_names))
                 batch_fnames = self.file_names[start:end]
 
                 for f in batch_fnames:
                     img = cv2.imread(_c(self.data_dir, f.jpg))
                     img = cv2.resize(img, (self.as_shape, self.as_shape))
+                    img_batch.append(img)
 
                     if self.mask_dir:
                         mask = cv2.imread(_c(self.mask_dir, f.mask), cv2.IMREAD_GRAYSCALE)
                         mask = cv2.resize(mask, (self.as_shape, self.as_shape))
-                        # mask = mask // 255
+                        mask = np.expand_dims(mask, axis=2)
+                        mask = mask / 255
+                        mask_batch.append(mask)
 
                     if not prefetch:
                         for aug_func in self.image_augments:
                             img, mask = aug_func(img, mask)
 
-                    img_batch.append(img)
-                    mask_batch.append(mask)
-
                 img_batch = np.array(img_batch, np.float32)
-                mask_batch = np.expand_dims(np.array(mask_batch, np.float32), axis=3) if self.mask_dir else None
+                mask_batch = np.array(mask_batch, np.float32) if self.mask_dir else None
 
                 # for i in range(img_batch.shape[0]):
                 #     cv2.imwrite('/tmp/mine/{}.jpg'.format(batch_fnames[i]), img_batch[i, :, :, :])
