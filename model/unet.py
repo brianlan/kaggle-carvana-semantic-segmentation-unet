@@ -55,8 +55,9 @@ class UNet:
 
         self.params[basename+'a'] = conv_layer(merged, (3, 3, num_filters), self.is_training, use_bn=True, name=basename + 'a')
         self.params[basename+'b'] = conv_layer(self.params[basename+'a'], (3, 3, num_filters), self.is_training, use_bn=True, name=basename + 'b')
+        self.params[basename+'c'] = conv_layer(self.params[basename+'b'], (3, 3, num_filters), self.is_training, use_bn=True, name=basename + 'c')
 
-        return self.params[basename+'b']
+        return self.params[basename+'c']
 
     def build(self):
         with tf.name_scope(self.tf_scope):
