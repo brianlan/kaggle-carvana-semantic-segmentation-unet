@@ -84,7 +84,7 @@ class ImageReader:
                     mask_batch.append(mask)
 
                 img_batch = np.array(img_batch, np.float32) / 255
-                mask_batch = (np.array(mask_batch, np.float32) / 255) if self.mask_dir else None
+                mask_batch = ((np.array(mask_batch, np.float32) - 1) // 255 + 1) if self.mask_dir else None
 
                 yield img_batch, mask_batch
 

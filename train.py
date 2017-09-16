@@ -33,7 +33,7 @@ TRAIN_DATA_DIR = os.path.join(INPUT_DIR, 'train')
 TRAIN_MASK_DIR = os.path.join(INPUT_DIR, 'train_masks')
 
 EPOCHS_ACCUMULATE_EACH_SAVING = 10
-MAX_EPOCH = 40
+MAX_EPOCH = 80
 NUM_CLASSES = 2
 BATCH_SIZE = args.batch_size
 INPUT_SHAPE = args.resolution
