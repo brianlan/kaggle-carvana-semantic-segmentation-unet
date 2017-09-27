@@ -32,14 +32,21 @@ INPUT_DIR = os.path.join(PROJECT_HOME, 'input')
 TRAIN_DATA_DIR = os.path.join(INPUT_DIR, 'train')
 TRAIN_MASK_DIR = os.path.join(INPUT_DIR, 'train_masks')
 
-EPOCHS_ACCUMULATE_EACH_SAVING = 10
-MAX_EPOCH = 80
+SAVING_INTERVAL = 10
+MAX_EPOCH = 100
 NUM_CLASSES = 2
 BATCH_SIZE = args.batch_size
 INPUT_SHAPE = args.resolution
 EARLY_STOPPING_PATIENCE = 8
 LR_REDUCE_PATIENCE = 4
 LR_REDUCE_FACTOR = 0.1
+
+LEARNING_RATE_SETTINGS = [
+    {'max_epoch': 20, 'lr': 0.001},
+    {'max_epoch': 70, 'lr': 0.0001},
+    {'max_epoch': 40, 'lr': 0.00001},
+    {'max_epoch': 40, 'lr': 0.000001},
+]
 
 ######################################
 #  Prepare Train / Validation Data
@@ -92,61 +99,63 @@ def main():
         best_val_loss = 9999999
         num_consec_worse_earlystop = 0
         num_consec_worse_lr = 0
-        learning_rate = 1e-4
+        # learning_rate = 1e-4
 
-        for epoch in range(MAX_EPOCH):
-            ##############
-            #   Train
-            ##############
-            start_time = time.time()
-            train_data = train_img_reader.read()
-            for batch, (X_batch, y_batch) in enumerate(train_data):
-                _, loss, pred = sess.run([unet.train_op, unet.loss, unet.pred],
-                                         feed_dict={unet.is_training: True, unet.X_train: X_batch,
-                                                    unet.y_train: y_batch, unet.learning_rate: learning_rate})
-                logger.info('[epoch {}, batch {}] training loss: {}'.format(epoch, batch, loss))
+        for s, lrs in enumerate(LEARNING_RATE_SETTINGS):
+            for epoch in range(lrs['max_epoch']):
+                ##############
+                #   Train
+                ##############
+                start_time = time.time()
+                train_data = train_img_reader.read()
+                for batch, (X_batch, y_batch) in enumerate(train_data):
+                    _, loss, pred = sess.run([unet.train_op, unet.loss, unet.pred],
+                                             feed_dict={unet.is_training: True, unet.X_train: X_batch,
+                                                        unet.y_train: y_batch, unet.learning_rate: lrs['lr']})
+                    logger.info('[set {}, epoch {}, batch {}] training loss: {}'.format(s, epoch, batch, loss))
 
-            logger.info('==== epoch {} took {:.0f} seconds to train. ===='.format(epoch, time.time() - start_time))
+                logger.info('==== set {}, epoch {} took {:.0f} seconds to train. ===='.format(s, epoch, time.time() - start_time))
 
-            ##########################
-            #   Eval Validation set
-            ##########################
-            start_time = time.time()
-            val_data = val_img_reader.read()
-            losses = []
-            for batch, (X_batch, y_batch) in enumerate(val_data):
-                loss, pred = sess.run([unet.loss, unet.pred],
-                                      feed_dict={unet.is_training: False, unet.X_train: X_batch, unet.y_train: y_batch})
-                losses.append(loss)
+                ##########################
+                #   Eval Validation set
+                ##########################
+                start_time = time.time()
+                val_data = val_img_reader.read()
+                losses = []
+                for batch, (X_batch, y_batch) in enumerate(val_data):
+                    loss, pred = sess.run([unet.loss, unet.pred],
+                                          feed_dict={unet.is_training: False, unet.X_train: X_batch, unet.y_train: y_batch})
+                    losses.append(loss)
 
-            avg_val_loss = np.average(losses)
-            logger.info('==== average validation loss: {} ===='.format(avg_val_loss))
-            logger.info('==== epoch {} took {:.0f} seconds to evaluate the validation set. ===='.format(epoch, time.time() - start_time))
+                avg_val_loss = np.average(losses)
+                logger.info('==== average validation loss: {} ===='.format(avg_val_loss))
+                logger.info('==== set {}, epoch {} took {:.0f} seconds to evaluate the validation set. ===='.format(s, epoch, time.time() - start_time))
 
-            def save_checkpoint(sess):
-                saver.save(sess, os.path.join(cur_checkpoint_path, 'unet-{}'.format(INPUT_SHAPE)), global_step=epoch)
+                def save_checkpoint(sess):
+                    saver.save(sess, os.path.join(cur_checkpoint_path, 'unet-{}'.format(INPUT_SHAPE)), global_step=s*len(LEARNING_RATE_SETTINGS)+epoch)
 
-            if avg_val_loss < best_val_loss:
-                best_val_loss = avg_val_loss
-                num_consec_worse_earlystop = 0
-                num_consec_worse_lr = 0
-            else:
-                num_consec_worse_earlystop += 1
-                num_consec_worse_lr += 1
+                if lrs.get('reduce_factor'):
+                    if avg_val_loss < best_val_loss:
+                        best_val_loss = avg_val_loss
+                        # num_consec_worse_earlystop = 0
+                        num_consec_worse_lr = 0
+                    else:
+                        # num_consec_worse_earlystop += 1
+                        num_consec_worse_lr += 1
 
-            if num_consec_worse_lr >= LR_REDUCE_PATIENCE:
-                learning_rate *= LR_REDUCE_FACTOR
-                logger.info('==== val loss did not improve for {} epochs, learning rate reduced to {}. ===='.format(
-                    num_consec_worse_lr, learning_rate))
-                num_consec_worse_lr = 0
+                    if num_consec_worse_lr >= lrs.get('reduce_patience'):
+                        lrs['lr'] *= lrs.get('reduce_factor')
+                        logger.info('==== val loss did not improve for {} epochs, learning rate reduced to {}. ===='.format(
+                            num_consec_worse_lr, lrs['lr']))
+                        num_consec_worse_lr = 0
 
-            if num_consec_worse_earlystop >= EARLY_STOPPING_PATIENCE:
-                logger.info('==== Training early stopped because worse val loss lasts for {} epochs. ===='.format(num_consec_worse_earlystop))
-                save_checkpoint(sess)
-                break
+                # if num_consec_worse_earlystop >= EARLY_STOPPING_PATIENCE:
+                #     logger.info('==== Training early stopped because worse val loss lasts for {} epochs. ===='.format(num_consec_worse_earlystop))
+                #     save_checkpoint(sess)
+                #     break
 
-            if (epoch > 0 and epoch % EPOCHS_ACCUMULATE_EACH_SAVING == 0) or epoch == MAX_EPOCH - 1:
-                save_checkpoint(sess)
+                if (epoch > 0 and epoch % SAVING_INTERVAL == 0) or epoch == lrs['max_epoch'] - 1:
+                    save_checkpoint(sess)
 
 
 main()
